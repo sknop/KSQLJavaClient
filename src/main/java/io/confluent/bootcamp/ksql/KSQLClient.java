@@ -1,9 +1,16 @@
 package io.confluent.bootcamp.ksql;
 
+import io.confluent.ksql.api.client.Client;
 import io.confluent.ksql.api.client.ClientOptions;
+import io.confluent.ksql.api.client.StreamInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+import java.io.*;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 
 @CommandLine.Command(
@@ -18,6 +25,8 @@ import java.util.concurrent.Callable;
 )
 
 public class KSQLClient implements Callable<Integer> {
+    private static final Logger logger = LoggerFactory.getLogger(KSQLClient.class);
+
     @Option(names = {"-c", "--config"}, required = true, description = "ksqlDB connection configuration file")
     String configFile;
 
@@ -32,21 +41,60 @@ public class KSQLClient implements Callable<Integer> {
         String ksqlFilename;
     }
 
+    private String ksqlAPIKey;
+    private String ksqlAPISecret;
+    private String ksqlDbEndpoint;
+
+
     public KSQLClient() {}
 
-    @Override
-    public Integer call() throws Exception {
-        ClientOptions options = ClientOptions.create()
-                .setBasicAuthCredentials("<ksqlDB-API-key>", "<ksqlDB-API-secret>")
-                .setHost("<ksqlDB-endpoint>")
-                .setPort(443)
-                .setUseTls(true)
-                .setUseAlpn(true);
+    private void processConfigFile() {
+        logger.info("Processing config file {}", configFile);
 
-        System.out.println("Hello world!");
+        Properties properties = new Properties();
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            Reader reader = new InputStreamReader(inputStream);
 
-        return null;
+            properties.load(reader);
+
+            ksqlAPIKey = properties.getProperty("api.key");
+            ksqlAPISecret = properties.getProperty("api.secret");
+            ksqlDbEndpoint = properties.getProperty("ksqldb.endpoint");
+
+            logger.info("ksqlAPIKey = {}", ksqlAPIKey);
+            logger.info("ksqlAPISecret = {}", ksqlAPISecret);
+            logger.info("ksqlDbEndpoint = {}", ksqlDbEndpoint);
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
+     @Override
+     public Integer call() throws Exception {
+         processConfigFile();
+
+         ClientOptions options = ClientOptions.create()
+                 .setBasicAuthCredentials(ksqlAPIKey, ksqlAPISecret)
+                 .setHost(ksqlDbEndpoint)
+                 .setPort(443)
+                 .setUseTls(true)
+                 .setUseAlpn(true);
+
+         try (Client client = Client.create(options)) {
+             List<StreamInfo> streams = client.listStreams().get();
+             for (StreamInfo stream : streams) {
+                 System.out.println(
+                         stream.getName()
+                                 + " " + stream.getTopic()
+                                 + " " + stream.getKeyFormat()
+                                 + " " + stream.getValueFormat()
+                                 + " " + stream.isWindowed()
+                 );
+             }
+         }
+
+         return null;
+     }
 
     public static void main(String[] args) {
         new CommandLine(new KSQLClient()).execute(args);
