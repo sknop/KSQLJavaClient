@@ -30,7 +30,7 @@ public class KSQLClient implements Callable<Integer> {
     @Option(names = {"-c", "--config"}, required = true, description = "ksqlDB connection configuration file")
     String configFile;
 
-    @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
+    @CommandLine.ArgGroup(multiplicity = "1")
     Exclusive exclusive;
 
     static class Exclusive {
