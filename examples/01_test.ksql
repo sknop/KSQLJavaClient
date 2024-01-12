@@ -1,0 +1,12 @@
+-- Examples comment
+-- Another comment
+
+CREATE STREAM IF NOT EXISTS pageviews (
+    page_id BIGINT,
+    viewtime BIGINT,
+    user_id VARCHAR
+  ) WITH (
+    KAFKA_TOPIC = 'keyless-pageviews-topic',
+    PARTITIONS = 1,
+    VALUE_FORMAT = 'JSON'
+  );

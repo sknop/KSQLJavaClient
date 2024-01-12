@@ -7,6 +7,6 @@ public class Version implements CommandLine.IVersionProvider {
         Package mainPackage = KSQLClient.class.getPackage();
         String version = mainPackage.getImplementationVersion();
 
-        return new String[] { version};
+        return new String[] { version };
     }
 }
