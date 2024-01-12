@@ -1,6 +1,8 @@
 -- Examples comment
 -- Another comment
 
+SET 'auto.offset.reset' = 'earliest';
+
 CREATE STREAM IF NOT EXISTS pageviews (
     page_id BIGINT,
     viewtime BIGINT,

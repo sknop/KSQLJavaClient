@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @CommandLine.Command(
+        name = "KSQLClient",
         synopsisHeading = "%nUsage:%n",
         descriptionHeading = "%nDescription:%n%n",
         parameterListHeading = "%nParameters:%n%n",
@@ -30,7 +31,6 @@ import java.util.stream.Stream;
         versionProvider = Version.class,
         description = "Read KSQL statements and apply them."
 )
-
 public class KSQLClient implements Callable<Integer> {
     private static final Logger logger = LoggerFactory.getLogger(KSQLClient.class);
 
@@ -87,9 +87,11 @@ public class KSQLClient implements Callable<Integer> {
                     String value = matcher.group(2);
 
                     properties.put(key, value);
+                    return processNextStatement();
                 }
                 else {
                     logger.warn("SetPattern did not match '{}'", line);
+                    return false;
                 }
             }
             else {
@@ -103,14 +105,11 @@ public class KSQLClient implements Callable<Integer> {
                 String l;
                 do {
                     String nl = reader.readLine();
-                    logger.info("Next line '{}'", nl);
                     if (nl == null) {
                         logger.error("Incomplete statement '{}'", builder);
                         return false;
                     }
                     l = nl.trim();
-
-                    logger.info("Does l end with ;? {}", l.endsWith(";"));
 
                     builder.append("\n");
                     builder.append(l);
@@ -119,9 +118,6 @@ public class KSQLClient implements Callable<Integer> {
                 nextStatement = builder.toString();
                 return true;
             }
-
-            logger.error("Should never get here.");
-            return false;
         }
 
         boolean hasNextStatement() {
@@ -139,6 +135,9 @@ public class KSQLClient implements Callable<Integer> {
     }
     private void processOneKSQLStatement(Client client, String statement, Map<String, Object> properties) {
         try {
+            logger.debug("Processing statement\n{}", statement);
+            logger.debug("Options: {}", properties);
+
             ExecuteStatementResult results = client.executeStatement(statement, properties).get();
 
             System.out.println(results);

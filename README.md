@@ -9,7 +9,7 @@ I also had a lot of files in a single directory, hence this tool.
 
 - Read a single file or, optionally, a whole directory full of files sorted by name
 - Parse the files (roughly) to extract the single statements. We are only distinguishing two kinds of statements:
-  - SET statements, which will define options. Typically something like
+  - SET statements, which will define options. Typically, something like
 
         SET 'auto.offset.reset' = 'earliest';
 
