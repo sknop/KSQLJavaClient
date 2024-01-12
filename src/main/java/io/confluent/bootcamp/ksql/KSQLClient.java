@@ -15,8 +15,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -40,6 +38,9 @@ public class KSQLClient implements Callable<Integer> {
     @CommandLine.ArgGroup(multiplicity = "1")
     Exclusive exclusive;
 
+    @Option(names = {"-l", "--list-streams"}, description = "List existing streams before and after statements have been run.")
+    boolean listStreams;
+
     static class Exclusive {
         @Option(names = {"-d", "--directory"}, description = "Directory containing ksqlDB execution files to be processed in order")
         String ksqlDirectory;
@@ -56,93 +57,20 @@ public class KSQLClient implements Callable<Integer> {
     public KSQLClient() {
     }
 
-    static class StatementParser {
-        private final Map<String, Object> properties = new HashMap<>();
-        BufferedReader reader;
-        String nextStatement = "";
-
-        Pattern setPattern = Pattern.compile("SET '(.*)'\\s*=\\s*'(.*)'\\s*;");
-
-        StatementParser(String fileContent) {
-            this.reader = new BufferedReader(new StringReader(fileContent));
-        }
-
-        boolean processNextStatement() throws IOException {
-            String nextLine = reader.readLine();
-            if (nextLine == null) {
-                return false;
-            }
-
-            String line = nextLine.trim();
-
-            // Check for and ignore comments or empty lines
-            if (line.startsWith("--") || line.isEmpty()) {
-                return processNextStatement();
-            }
-
-            if (line.startsWith("SET")) {
-                Matcher matcher = setPattern.matcher(line);
-                if (matcher.find()) {
-                    String key = matcher.group(1);
-                    String value = matcher.group(2);
-
-                    properties.put(key, value);
-                    return processNextStatement();
-                }
-                else {
-                    logger.warn("SetPattern did not match '{}'", line);
-                    return false;
-                }
-            }
-            else {
-                if (line.endsWith(";")) {
-                    nextStatement = line;
-
-                    return true;
-                }
-                StringBuilder builder = new StringBuilder(line);
-
-                String l;
-                do {
-                    String nl = reader.readLine();
-                    if (nl == null) {
-                        logger.error("Incomplete statement '{}'", builder);
-                        return false;
-                    }
-                    l = nl.trim();
-
-                    builder.append("\n");
-                    builder.append(l);
-                } while (! l.endsWith(";"));
-
-                nextStatement = builder.toString();
-                return true;
-            }
-        }
-
-        boolean hasNextStatement() {
-            try {
-                return processNextStatement();
-            } catch (IOException e) {
-                logger.error("Should never happen!", e);
-                throw new RuntimeException(e);
-            }
-        }
-
-        String nextStatement() {
-            return nextStatement;
-        }
+    private String formatStatement(String statement) {
+        return statement.lines().map(line -> "\t" + line).collect(Collectors.joining("\n"));
     }
+
     private void processOneKSQLStatement(Client client, String statement, Map<String, Object> properties) {
         try {
-            logger.debug("Processing statement\n{}", statement);
+            logger.debug("Processing statement\n{}", formatStatement(statement));
             logger.debug("Options: {}", properties);
 
             ExecuteStatementResult results = client.executeStatement(statement, properties).get();
 
             System.out.println(results);
         } catch (InterruptedException | ExecutionException e) {
-            logger.error("Encountered exception while executing: \n\n{}\n", statement, e);
+            logger.error("Encountered exception while executing: \n\n{}\n", formatStatement(statement), e);
             throw new RuntimeException(e);
         }
     }
@@ -159,7 +87,7 @@ public class KSQLClient implements Callable<Integer> {
             while(statementParser.hasNextStatement()) {
                 String statement = statementParser.nextStatement();
 
-                processOneKSQLStatement(client, statement, statementParser.properties);
+                processOneKSQLStatement(client, statement, statementParser.getProperties());
             }
         } catch (IOException e) {
             logger.error("I/O Error while processing {}", filename, e);
@@ -214,25 +142,35 @@ public class KSQLClient implements Callable<Integer> {
                 .setUseAlpn(true);
 
         try (Client client = Client.create(options)) {
-            List<StreamInfo> streams = client.listStreams().get();
-            for (StreamInfo stream : streams) {
-                System.out.println(
-                        stream.getName()
-                                + " " + stream.getTopic()
-                                + " " + stream.getKeyFormat()
-                                + " " + stream.getValueFormat()
-                                + " " + stream.isWindowed()
-                );
-            }
+            if (listStreams)
+                listStreams(client);
+
             if (exclusive.ksqlDirectory != null) {
                 processKSQLDirectory(client, exclusive.ksqlDirectory);
             }
             else if (exclusive.ksqlFilename != null) {
                 processOneKSQLFile(client, exclusive.ksqlFilename);
             }
+            else {
+                throw new RuntimeException("Should never get here.");
+            }
+            if (listStreams)
+                listStreams(client);
         }
 
         return null;
+    }
+
+    private static void listStreams(Client client) throws InterruptedException, ExecutionException {
+        List<StreamInfo> streams = client.listStreams().get();
+        for (StreamInfo stream : streams) {
+            logger.info("name = {} topic = {} keyFormat = {} valueFormat = {} isWindowed = {}",
+                    stream.getName(),
+                    stream.getTopic(),
+                    stream.getKeyFormat(),
+                    stream.getValueFormat(),
+                    stream.isWindowed());
+        }
     }
 
     public static void main(String[] args) {

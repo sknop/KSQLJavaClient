@@ -12,3 +12,13 @@ CREATE STREAM IF NOT EXISTS pageviews (
     PARTITIONS = 1,
     VALUE_FORMAT = 'JSON'
   );
+
+CREATE STREAM IF NOT EXISTS users (
+    user_id VARCHAR,
+    first_name VARCHAR,
+    last_name VARCHAR
+  ) WITH (
+    KAFKA_TOPIC = 'pageview_users',
+    PARTITIONS = 1,
+    VALUE_FORMAT = 'JSON'
+  );
