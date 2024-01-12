@@ -68,7 +68,7 @@ public class KSQLClient implements Callable<Integer> {
 
             ExecuteStatementResult results = client.executeStatement(statement, properties).get();
 
-            System.out.println(results);
+            logger.debug(results.toString());
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Encountered exception while executing: \n\n{}\n", formatStatement(statement), e);
             throw new RuntimeException(e);
@@ -76,7 +76,7 @@ public class KSQLClient implements Callable<Integer> {
     }
 
     private void processOneKSQLFile(Client client, String filename) {
-        logger.info("Processing {}", filename);
+        logger.debug("Processing {}", filename);
 
         try {
             String fileContent = new String(Files.readAllBytes(Paths.get(filename)));
@@ -109,7 +109,7 @@ public class KSQLClient implements Callable<Integer> {
     }
 
     private void processConfigFile() {
-        logger.info("Processing config file {}", configFile);
+        logger.debug("Processing config file {}", configFile);
 
         Properties properties = new Properties();
         try (InputStream inputStream = new FileInputStream(configFile)) {
