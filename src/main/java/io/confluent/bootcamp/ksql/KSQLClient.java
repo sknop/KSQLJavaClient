@@ -108,6 +108,10 @@ public class KSQLClient implements Callable<Integer> {
         }
     }
 
+    private String adjustEndpoint(String endpoint) {
+        return endpoint.replaceFirst("https://","").replace(":443","");
+    }
+
     private void processConfigFile() {
         logger.debug("Processing config file {}", configFile);
 
@@ -119,7 +123,7 @@ public class KSQLClient implements Callable<Integer> {
 
             ksqlAPIKey = properties.getProperty("api.key");
             ksqlAPISecret = properties.getProperty("api.secret");
-            ksqlDbEndpoint = properties.getProperty("ksqldb.endpoint");
+            ksqlDbEndpoint = adjustEndpoint(properties.getProperty("ksqldb.endpoint"));
 
             logger.debug("ksqlAPIKey = {}", ksqlAPIKey);
             logger.debug("ksqlAPISecret = {}", ksqlAPISecret);
