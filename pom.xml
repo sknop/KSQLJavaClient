@@ -6,7 +6,7 @@
 
     <groupId>io.confluent.bootcamp.ksql</groupId>
     <artifactId>KSQLJavaClient</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <properties>
         <java.version>11</java.version>
